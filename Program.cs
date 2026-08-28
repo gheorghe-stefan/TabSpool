@@ -89,7 +89,7 @@ internal static class Program
     // Global settings and state
     private static int _tabBarHeight = 64;
     private static int _excludeRightMargin = 140;
-    private static long _scrollCooldownMs = 75;
+    private static long _scrollCooldownMs = 25;
     private static bool _reverseDirection = false;
     private static long _lastScrollTime = 0;
 
@@ -122,7 +122,7 @@ internal static class Program
                     ExcludeRightMargin=140
 
                     # Cooldown between tab switches (in milliseconds)
-                    ScrollCooldownMs=75
+                    ScrollCooldownMs=25
 
                     # Reverse the scroll direction (true/false)
                     ReverseDirection=false

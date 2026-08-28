@@ -43,9 +43,9 @@ To compile this on a machine with the **.NET 10 SDK** installed:
 
 When run for the first time, TabSpool creates a **`config.txt`** file in the same directory. You can edit this file to customize:
 
-*   `TabBarHeight`: Bounding box height of your tab strip from the top of the window (default: `40` pixels).
+*   `TabBarHeight`: Bounding box height of your tab strip from the top of the window (default: `64` pixels).
 *   `ExcludeRightMargin`: Bounding box margin from the right edge to avoid triggering on window controls like Minimize, Maximize, or Close (default: `140` pixels).
-*   `ScrollCooldownMs`: Debounce delay between scroll triggers (default: `150` milliseconds).
+*   `ScrollCooldownMs`: Debounce delay between scroll triggers (default: `25` milliseconds).
 *   `ReverseDirection`: Reverses scroll directions (default: `false`).
 
 ### How to apply settings:
