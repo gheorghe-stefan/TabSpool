@@ -8,5 +8,49 @@
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
-</Project>
+  <PropertyGroup>
+    <_SignScriptContent><![CDATA[
+param([string]$ExePath)
+$ErrorActionPreference = 'Stop'
+$sub = 'CN=TabSpool Local Dev'
+$now = Get-Date
+$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert |
+    Where-Object { $_.Subject -eq $sub -and $_.NotAfter -gt $now } |
+    Sort-Object NotAfter -Descending |
+    Select-Object -First 1
 
+if (-not $cert) {
+    $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $sub -CertStoreLocation Cert:\CurrentUser\My -NotAfter $now.AddYears(10)
+}
+
+$tp = $cert.Thumbprint
+if (-not (Test-Path "Cert:\LocalMachine\Root\$tp")) {
+    try {
+        $cer = Join-Path $env:TEMP "TabSpool-$tp.cer"
+        Export-Certificate -Cert $cert -FilePath $cer -Force | Out-Null
+        $cmd = "Import-Certificate -FilePath '$cer' -CertStoreLocation Cert:\LocalMachine\Root | Out-Null; Import-Certificate -FilePath '$cer' -CertStoreLocation Cert:\LocalMachine\TrustedPublisher | Out-Null"
+        Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`""
+        Remove-Item $cer -Force -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+if (Test-Path $ExePath) {
+    Unblock-File -Path $ExePath -ErrorAction SilentlyContinue
+    $sig = Set-AuthenticodeSignature -FilePath $ExePath -Certificate $cert
+    $st = $sig.Status
+    Write-Host "  Signed: $ExePath [$st]"
+}
+]]></_SignScriptContent>
+  </PropertyGroup>
+
+  <Target Name="SignBuiltExe" AfterTargets="Build" Condition="Exists('$(TargetDir)$(AssemblyName).exe')">
+    <WriteLinesToFile File="$(IntermediateOutputPath)sign.ps1" Lines="$(_SignScriptContent)" Overwrite="true" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(IntermediateOutputPath)sign.ps1&quot; &quot;$(TargetDir)$(AssemblyName).exe&quot;" />
+  </Target>
+
+  <Target Name="SignPublishedExe" AfterTargets="Publish" Condition="Exists('$(PublishDir)$(AssemblyName).exe')">
+    <WriteLinesToFile File="$(IntermediateOutputPath)sign.ps1" Lines="$(_SignScriptContent)" Overwrite="true" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(IntermediateOutputPath)sign.ps1&quot; &quot;$(PublishDir)$(AssemblyName).exe&quot;" />
+  </Target>
+
+</Project>

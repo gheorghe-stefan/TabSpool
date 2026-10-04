@@ -7,19 +7,12 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo Compiling TabSpool.exe in C# (.NET 10)...
+echo Compiling and signing TabSpool.exe in C# (.NET 10)...
 dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:PublishTrimmed=false
 
 if %errorlevel% equ 0 (
     copy /y bin\Release\net10.0-windows\win-x64\publish\TabSpool.exe .\TabSpool.exe >nul
-    echo Signing TabSpool.exe...
-    powershell -NoProfile -ExecutionPolicy Bypass -File .\sign.ps1 "bin\Release\net10.0-windows\win-x64\publish\TabSpool.exe" ".\TabSpool.exe"
-    if %errorlevel% neq 0 (
-        echo Signing FAILED.
-        pause
-        exit /b 1
-    )
-    echo Compile and Signing Successful! TabSpool.exe created in root directory.
+    echo Compile Successful! Signed TabSpool.exe created in root directory.
     echo.
     echo Double-click TabSpool.exe to run it. It will run in your system tray with a custom icon.
 ) else (
