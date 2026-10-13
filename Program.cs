@@ -96,7 +96,21 @@ internal static class Program
     private static LowLevelMouseProc? _hookProc;
     private static IntPtr _hookId = IntPtr.Zero;
 
-    private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.txt");
+    private static readonly string ConfigPath = GetConfigFilePath();
+
+    private static string GetConfigFilePath()
+    {
+        // First check if legacy config.txt exists in app directory (for portable usage)
+        string localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.txt");
+        if (File.Exists(localPath))
+        {
+            return localPath;
+        }
+
+        // For MSIX packaged installs and standard Windows usage, store in %LOCALAPPDATA%\TabSpool
+        string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TabSpool");
+        return Path.Combine(appDataDir, "config.txt");
+    }
 
     [STAThread]
     private static void Main()
@@ -109,6 +123,12 @@ internal static class Program
     {
         try
         {
+            string? dir = Path.GetDirectoryName(ConfigPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
             if (!File.Exists(ConfigPath))
             {
                 const string defaultContent = """
