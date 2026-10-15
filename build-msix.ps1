@@ -39,8 +39,11 @@ if (-not (Test-Path "$binDir\TabSpool.exe")) {
 }
 
 Write-Host "==> 2. Preparing PackageLayout..." -ForegroundColor Cyan
-# Copy binary to layout
+# Copy binary and default config template to layout
 Copy-Item "$binDir\TabSpool.exe" "$layoutDir\TabSpool.exe" -Force
+if (Test-Path "$rootDir\config.txt") {
+    Copy-Item "$rootDir\config.txt" "$layoutDir\config.txt" -Force
+}
 
 # Resolve makeappx and signtool from Windows Kits
 $makeAppx = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\makeappx.exe"

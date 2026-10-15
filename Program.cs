@@ -98,16 +98,56 @@ internal static class Program
 
     private static readonly string ConfigPath = GetConfigFilePath();
 
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern int GetCurrentPackageFamilyName(ref int packageFamilyNameLength, StringBuilder packageFamilyName);
+
+    private const int APPMODEL_ERROR_NO_PACKAGE = 15700;
+
+    private static string GetPackageFamilyName()
+    {
+        try
+        {
+            int length = 0;
+            StringBuilder sb = new StringBuilder(0);
+            int result = GetCurrentPackageFamilyName(ref length, sb);
+            if (result == APPMODEL_ERROR_NO_PACKAGE || length == 0)
+            {
+                return string.Empty;
+            }
+
+            sb = new StringBuilder(length);
+            result = GetCurrentPackageFamilyName(ref length, sb);
+            return result == 0 ? sb.ToString() : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
     private static string GetConfigFilePath()
     {
-        // First check if legacy config.txt exists in app directory (for portable usage)
+        string pfn = GetPackageFamilyName();
+        if (!string.IsNullOrEmpty(pfn))
+        {
+            // Inside MSIX packaged app container
+            string pkgAppData = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Packages",
+                pfn,
+                "LocalCache",
+                "Local",
+                "TabSpool");
+            return Path.Combine(pkgAppData, "config.txt");
+        }
+
+        // Portable or standalone installation
         string localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.txt");
         if (File.Exists(localPath))
         {
             return localPath;
         }
 
-        // For MSIX packaged installs and standard Windows usage, store in %LOCALAPPDATA%\TabSpool
         string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TabSpool");
         return Path.Combine(appDataDir, "config.txt");
     }
@@ -119,7 +159,7 @@ internal static class Program
         Application.Run(new TabSpoolContext());
     }
 
-    private static void LoadConfig()
+    private static void EnsureConfigFileExists()
     {
         try
         {
@@ -131,24 +171,45 @@ internal static class Program
 
             if (!File.Exists(ConfigPath))
             {
-                const string defaultContent = """
-                    # TabSpool Configuration
-                    # You can modify these settings and select 'Reload Config' from the system tray menu.
+                // Check if a packaged template exists in base directory
+                string bundledTemplate = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.txt");
+                if (File.Exists(bundledTemplate) && !string.Equals(bundledTemplate, ConfigPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Copy(bundledTemplate, ConfigPath, overwrite: true);
+                }
+                else
+                {
+                    const string defaultContent = """
+                        # TabSpool Configuration
+                        # You can modify these settings and select 'Reload Config' from the system tray menu.
 
-                    # Height of the tab bar hot zone from the top of the window (in pixels)
-                    TabBarHeight=64
+                        # Height of the tab bar hot zone from the top of the window (in pixels)
+                        TabBarHeight=64
 
-                    # Exclude window controls area (minimize/maximize/close) from the right edge (in pixels)
-                    ExcludeRightMargin=140
+                        # Exclude window controls area (minimize/maximize/close) from the right edge (in pixels)
+                        ExcludeRightMargin=140
 
-                    # Cooldown between tab switches (in milliseconds)
-                    ScrollCooldownMs=25
+                        # Cooldown between tab switches (in milliseconds)
+                        ScrollCooldownMs=25
 
-                    # Reverse the scroll direction (true/false)
-                    ReverseDirection=false
-                    """;
-                File.WriteAllText(ConfigPath, defaultContent, Encoding.UTF8);
+                        # Reverse the scroll direction (true/false)
+                        ReverseDirection=false
+                        """;
+                    File.WriteAllText(ConfigPath, defaultContent, Encoding.UTF8);
+                }
             }
+        }
+        catch
+        {
+            // Best effort
+        }
+    }
+
+    private static void LoadConfig()
+    {
+        try
+        {
+            EnsureConfigFileExists();
 
             foreach (var line in File.ReadLines(ConfigPath))
             {
@@ -346,12 +407,29 @@ internal static class Program
         {
             try
             {
-                Process.Start(new ProcessStartInfo
+                EnsureConfigFileExists();
+
+                // Launch editor pointing directly to ConfigPath
+                var psi = new ProcessStartInfo
                 {
                     FileName = "notepad.exe",
                     Arguments = $"\"{ConfigPath}\"",
-                    UseShellExecute = true
-                });
+                    UseShellExecute = false
+                };
+
+                try
+                {
+                    Process.Start(psi);
+                }
+                catch
+                {
+                    // Fallback to ShellExecute via explorer if direct launch fails
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = ConfigPath,
+                        UseShellExecute = true
+                    });
+                }
             }
             catch (Exception ex)
             {

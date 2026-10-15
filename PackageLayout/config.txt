@@ -1,0 +1,14 @@
+﻿# TabSpool Configuration
+# You can modify these settings and select 'Reload Config' from the system tray menu.
+
+# Height of the tab bar hot zone from the top of the window (in pixels)
+TabBarHeight=64
+
+# Exclude window controls area (minimize/maximize/close) from the right edge (in pixels)
+ExcludeRightMargin=140
+
+# Cooldown between tab switches (in milliseconds)
+ScrollCooldownMs=25
+
+# Reverse the scroll direction (true/false)
+ReverseDirection=false
